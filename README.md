@@ -1,5 +1,6 @@
 # MSRAPaperProject
 My MSRA projects of implementions of papers.
+<<<<<<< HEAD
 
 ## A Seq2Seq Chatbot
 
@@ -21,3 +22,5 @@ Next run `build_model.py` to train:
 >$THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python build_model.py
 
 Note that the last few lines are commented out, which illustrate how to make a `Chatbot` instance with a `model` instance, and to talk to the chatbot instance by simply passing it a string.
+=======
+>>>>>>> bba4d0f781da567d35c2cc65866fd7a8a8880a56

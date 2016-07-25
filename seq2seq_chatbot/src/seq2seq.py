@@ -23,9 +23,9 @@ class LSTM(object):
 
     def forward(self, inputs, mask, h0=None, C0=None):
         """
-		param inputs: #(max_sent_size, batch_size, hidden_size).
-		inputs: state_below
-		"""
+        param inputs: #(max_sent_size, batch_size, hidden_size).
+        inputs: state_below
+        """
         if inputs.ndim == 3:
             batch_size = inputs.shape[1]
         else:

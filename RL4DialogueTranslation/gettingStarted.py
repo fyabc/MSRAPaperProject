@@ -3,14 +3,16 @@
 
 from __future__ import print_function, unicode_literals
 
-import theano.tensor as T
-from theano import function, pp
+from keras.models import Sequential
+from keras.layers import LSTM
+from keras.layers import Dense, Dropout, Activation
+from keras.layers import Embedding
 
 __author__ = 'fyabc'
 
 
 def tryFunction():
-    pass
+    model = Sequential()
 
 
 if __name__ == '__main__':

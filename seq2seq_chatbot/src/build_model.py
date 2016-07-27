@@ -86,3 +86,6 @@ if __name__ == '__main__':
         conva = raw_input("role A: ")
         convB = cbot.utter(conva)
         print "role B: ", convB, "\n"
+
+    with open(path_pkl, 'wb') as mf:
+        pickle.dump(model, mf)

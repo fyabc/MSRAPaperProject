@@ -22,7 +22,7 @@ __author__ = 'fyabc'
 class MDP:
     STATE_NUM = 8
 
-    def __init__(self, gamma=0.5):
+    def __init__(self, gamma=0.8):
         self.states = [i for i in range(1, 1 + self.STATE_NUM)]
         self.terminalStates = {6, 7, 8}
 

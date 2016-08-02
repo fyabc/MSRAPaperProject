@@ -117,5 +117,18 @@ class MDP:
         return stateSamples, actionSamples, rewardSamples
 
 
+def test():
+    mdp = MDP()
+
+    states, actions, rewards = mdp.randomWalk()
+
+    print('A random walk:')
+    for i in range(len(states)):
+        print('I am in state %d' % (states[i], ))
+        print('Action: %s' % (actions[i], ))
+    print('I am in state %d' % (mdp.transTable.get((states[-1], actions[-1]), states[-1]), ))
+    print('The last result is %2.1f' % (rewards[-1], ))
+
+
 if __name__ == '__main__':
-    print('In MDP class')
+    test()

@@ -41,6 +41,9 @@ def build_model(
 
     print "Will train a new model..."
 
+    if dump:
+        print("Will dump the generated model...")
+
     encoderInputs, decoderInputs, decoderTarget = load_train_data(path_train, 20000)
     # (sent_size, example_num)
     num_batchs = encoderInputs.shape[1] // batch_size
@@ -66,8 +69,11 @@ def build_model(
         batch_idx = (batch_idx + 1) % num_batchs
 
     if dump:
-        with open(path_pkl, "wb") as mf:
-            pickle.dump(model, mf)
+        try:
+            with open(path_pkl, "wb") as mf:
+                pickle.dump(model, mf)
+        except Exception as e:
+            print(e)
 
     return model
 
@@ -76,7 +82,7 @@ if __name__ == '__main__':
     print "Initializing chatbot..."
     time_start = timeit.default_timer()
 
-    model = build_model(retrain=False, max_epochs=20000, lstm_layers_num=4)
+    model = build_model(retrain=False, max_epochs=20000, lstm_layers_num=4, dump=True)
     cbot = Chatbot(model)
 
     time_end = timeit.default_timer()

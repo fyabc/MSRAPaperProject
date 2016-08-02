@@ -34,7 +34,7 @@ class MDP:
             (5, 's'): -1.0,
         }
 
-        self.t = {
+        self.transTable = {
             (1, 's'): 6,
             (1, 'e'): 2,
             (2, 'w'): 1,
@@ -50,6 +50,18 @@ class MDP:
 
         self.gamma = gamma
 
+    @property
+    def actionSize(self):
+        return len(self.actions)
+
+    @property
+    def stateSize(self):
+        return self.STATE_NUM
+
+    @property
+    def terminalStateSize(self):
+        return len(self.terminalStates)
+
     def transform(self, state, action):
         """
         :return: is_terminal, state, reward
@@ -59,7 +71,7 @@ class MDP:
 
         key = (state, action)
 
-        nextState = self.t.get(key, state)
+        nextState = self.transTable.get(key, state)
         isTerminal = nextState in self.terminalStates
         reward = self.rewards.get(key, 0.0)
 
@@ -68,24 +80,35 @@ class MDP:
     def randomAction(self):
         return random.choice(self.actions)
 
-    def randomWalk(self, sampleNumber=1):
+    def randomWalk(self):
+        """
+        :return: states, actions, rewards
+        """
+        states, actions, rewards = [], [], []
+
+        state = random.choice(self.states)
+        isTerminal = False
+
+        while not isTerminal:
+            action = self.randomAction()
+            isTerminal, nextState, reward = self.transform(state, action)
+
+            states.append(state)
+            actions.append(action)
+            rewards.append(reward)
+
+            state = nextState
+
+        return states, actions, rewards
+
+    def randomWalkSamples(self, sampleNumber=1):
+        """
+        :return: list of results of randomWalk()
+        """
         stateSamples, actionSamples, rewardSamples = [], [], []
 
         for _ in range(sampleNumber):
-            statesTmp, actionsTmp, rewardsTmp = [], [], []
-
-            state = random.choice(self.states)
-            isTerminal = False
-
-            while not isTerminal:
-                action = self.randomAction()
-                isTerminal, nextState, reward = self.transform(state, action)
-
-                statesTmp.append(state)
-                actionsTmp.append(action)
-                rewardsTmp.append(reward)
-
-                state = nextState
+            statesTmp, actionsTmp, rewardsTmp = self.randomWalk()
 
             stateSamples.append(statesTmp)
             actionSamples.append(actionsTmp)

@@ -20,18 +20,20 @@ def MonteCarlo(mdp, stateSamples, actionSamples, rewardSamples):
     }
 
     for i in range(len(stateSamples)):
-        # G: total rewards
-        G = 0.0
-        expGamma = 1.0
+        # g: total rewards
+        g = 0.0
+        for step in range(len(stateSamples[i]) - 1, -1, -1):
+            g *= mdp.gamma
+            g += rewardSamples[i][step]
 
         # Using every MC method
         for step in range(len(stateSamples[i])):
-            G += rewardSamples[i][step] * expGamma
-            expGamma *= mdp.gamma
-
             state = stateSamples[i][step]
-            vFunc[state] += G
+            vFunc[state] += g
             nFunc[state] += 1
+
+            g -= rewardSamples[i][step]
+            g /= mdp.gamma
 
     for state in mdp.states:
         if nFunc[state] > 0:
@@ -67,14 +69,14 @@ def temporalDifference(mdp, alpha, stateSamples, actionSamples, rewardSamples):
 def test():
     mdp = MDP(0.5)
 
-    vFunc = MonteCarlo(mdp, *mdp.randomWalk(100))
+    vFunc = MonteCarlo(mdp, *mdp.randomWalkSamples(100))
 
     print('Monte Carlo:')
     for i in range(1, 6):
         print('%d: %f\t' % (i, vFunc[i]), end='')
     print()
 
-    vFunc = temporalDifference(mdp, 0.15, *mdp.randomWalk(100))
+    vFunc = temporalDifference(mdp, 0.15, *mdp.randomWalkSamples(100))
 
     print('Temporal Difference:')
     for i in range(1, 6):

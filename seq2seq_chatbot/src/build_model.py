@@ -76,7 +76,7 @@ if __name__ == '__main__':
     print "Initializing chatbot..."
     time_start = timeit.default_timer()
 
-    model = build_model(retrain=False, max_epochs=20000)
+    model = build_model(retrain=False, max_epochs=20000, lstm_layers_num=4)
     cbot = Chatbot(model)
 
     time_end = timeit.default_timer()

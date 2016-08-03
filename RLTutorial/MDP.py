@@ -19,7 +19,7 @@ __author__ = 'fyabc'
 '''
 
 
-class MDP:
+class MDP(object):
     STATE_NUM = 8
 
     def __init__(self, gamma=0.8):

@@ -6,6 +6,7 @@ import random
 import matplotlib.pyplot as plt
 
 from MDP import MDP
+from utils import bestQFunc, getBestQFunc, getSquareError
 import version23
 
 
@@ -25,30 +26,6 @@ Greedy policy may not be best, so we use \epsilon-greedy policy.
         1 - \epsilon + \epsilon / |A|       , a = argmax_a(q(s, a))
         \epsilon / |A|                      , else
 """
-
-
-bestQFunc = {}
-
-
-def getBestQFunc():
-    if len(bestQFunc) > 0:
-        return
-
-    with open('bestQFunc.txt', 'r') as f:
-        for line in f:
-            words = line.split()
-            if len(words) >= 3:
-                bestQFunc[int(words[0]), words[1]] = float(words[2])
-
-
-def getSquareError(qFunc):
-    return sum(map(lambda key: (qFunc[key] - bestQFunc[key]) ** 2, qFunc), 0)
-    # result = 0.0
-    #
-    # for key in qFunc:
-    #     result += (qFunc[key] - bestQFunc[key]) ** 2
-    #
-    # return result
 
 
 def epsilonGreedy(mdp, qFunc, state, epsilon):
@@ -217,6 +194,8 @@ def QLearning(mdp, alpha, epsilon, iterNum, maxWalkLen=100, echoSE=False):
     alpha: learning rate
 
     q(s, a) = q(s, a) + \alpha * (r + \gamma * max_{a'}(q(s', a')) - q(s, a))
+
+    Q-learning is off-policy: it can learn from other policies, such as random policy.
     """
 
     qFunc = {
@@ -308,24 +287,132 @@ def testVariance():
 
 
 def testEpsilonGreedy():
-    pass
+    getBestQFunc()
+
+    plt.figure(figsize=(14, 10))
+
+    mdp = MDP()
+    iterNum = 6000
+    epsilons = [0.2, 0.4, 1.0]
+    alpha = 0.2
+    x = [i for i in range(iterNum)]
+
+    for epsilon in epsilons:
+        qFunc, se = MCControl(mdp, epsilon, iterNum, echoSE=True)
+        plt.plot(x, se, '-', label=r'mc $\epsilon = %2.1f$' % epsilon)
+        # showQFunc(mdp, qFunc)
+
+        qFunc, se = SARSA(mdp, alpha, epsilon, iterNum, echoSE=True)
+        plt.plot(x, se, '--', label=r'sarsa $\alpha = %2.1f, \epsilon = %2.1f$' % (alpha, epsilon))
+        # showQFunc(mdp, qFunc)
+
+        qFunc, se = QLearning(mdp, alpha, epsilon, iterNum, echoSE=True)
+        plt.plot(x, se, '-.', label=r'q-learning $\alpha = %2.1f, \epsilon = %2.1f$' % (alpha, epsilon))
+        # showQFunc(mdp, qFunc)
+
+    plt.xlabel(r'number of iterations')
+    plt.ylabel(r'square errors')
+    plt.legend()
+    plt.show()
 
 
 def testLearningRate():
-    pass
+    getBestQFunc()
+
+    plt.figure(figsize=(14, 10))
+
+    mdp = MDP()
+    iterNum = 6000
+    epsilon = 0.2
+    alphas = [0.1, 0.2, 0.3]
+    x = [i for i in range(iterNum)]
+
+    qFunc, se = MCControl(mdp, epsilon, iterNum, echoSE=True)
+    plt.plot(x, se, '-.', label=r'mc $\epsilon = %2.1f$' % epsilon)
+    # showQFunc(mdp, qFunc)
+
+    for alpha in alphas:
+        qFunc, se = SARSA(mdp, alpha, epsilon, iterNum, echoSE=True)
+        plt.plot(x, se, '--', label=r'sarsa $\alpha = %2.1f, \epsilon = %2.1f$' % (alpha, epsilon))
+        # showQFunc(mdp, qFunc)
+
+        qFunc, se = QLearning(mdp, alpha, epsilon, iterNum, echoSE=True)
+        plt.plot(x, se, '-', label=r'q-learning $\alpha = %2.1f, \epsilon = %2.1f$' % (alpha, epsilon))
+        # showQFunc(mdp, qFunc)
+
+    plt.xlabel(r'number of iterations')
+    plt.ylabel(r'square errors')
+    plt.legend()
+    plt.show()
 
 
 def testComprehensive():
-    pass
+    getBestQFunc()
+
+    plt.figure(figsize=(14, 10))
+
+    mdp = MDP()
+    iterNum = 6000
+    epsilons = [0.1, 0.2]
+    alphas = [0.2, 0.4]
+    x = [i for i in range(iterNum)]
+
+    for epsilon in epsilons:
+        qFunc, se = MCControl(mdp, epsilon, iterNum, echoSE=True)
+        plt.plot(x, se, '-', label=r'mc $\epsilon = %2.1f$' % epsilon)
+        # showQFunc(mdp, qFunc)
+
+        for alpha in alphas:
+            qFunc, se = SARSA(mdp, alpha, epsilon, iterNum, echoSE=True)
+            plt.plot(x, se, '--', label=r'sarsa $\alpha = %2.1f, \epsilon = %2.1f$' % (alpha, epsilon))
+            # showQFunc(mdp, qFunc)
+
+            qFunc, se = QLearning(mdp, alpha, epsilon, iterNum, echoSE=True)
+            plt.plot(x, se, '-', label=r'q-learning $\alpha = %2.1f, \epsilon = %2.1f$' % (alpha, epsilon))
+            # showQFunc(mdp, qFunc)
+
+    plt.xlabel(r'number of iterations')
+    plt.ylabel(r'square errors')
+    plt.legend()
+    plt.show()
 
 
 def testNearOptimal():
-    pass
+    getBestQFunc()
+
+    plt.figure(figsize=(14, 10))
+
+    mdp = MDP()
+    iterNum = 6000
+    epsilon = 0.9
+    x = [i for i in range(iterNum)]
+
+    print('Epsilon = %2.1f:' % epsilon)
+    qFunc, se = MCControl(mdp, epsilon, iterNum, echoSE=True)
+
+    for state in mdp.states:
+        for action in mdp.actions:
+            print('%d %s: %4.3f' % (state, action, qFunc[state, action]))
+
+    print('Best:')
+    for state in mdp.states:
+        for action in mdp.actions:
+            print('%d %s: %4.3f' % (state, action, bestQFunc[state, action]))
+
+    plt.plot(x, se, '-', label=r'mc $\epsilon = %2.1f$' % epsilon)
+
+    plt.xlabel(r'number of iterations')
+    plt.ylabel(r'square errors')
+    plt.legend()
+    plt.show()
 
 
 def test():
-    testVariance()
-
+    # testVariance()
+    # testEpsilonGreedy()
+    # testLearningRate()
+    # testComprehensive()
+    testNearOptimal()
 
 if __name__ == '__main__':
     test()

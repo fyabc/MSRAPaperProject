@@ -8,6 +8,7 @@ import numpy as np
 import random
 
 from MDP import MDP
+from policy import Policy
 from utils import getSquareErrorPolicy, getBestQFunc, bestQFunc
 import version23
 
@@ -81,7 +82,7 @@ class FeatureMDP(MDP):
             raise KeyError('Unknown feature type')
 
     @property
-    def stateFeatureSize(self):
+    def sFeatureSize(self):
         return len(self.features[self.states[0]])
 
     def getFeature(self, state):
@@ -91,67 +92,6 @@ class FeatureMDP(MDP):
     def transform(self, state, action):
         isTerminal, nextState, reward = super(FeatureMDP, self).transform(state, action)
         return isTerminal, nextState, reward, self.getFeature(nextState)
-
-
-class Policy(object):
-    def __init__(self, featureMDP):
-        self.mdp = featureMDP
-
-        # parameters is w
-        self.parameters = np.zeros((self.mdp.actionSize * self.mdp.stateFeatureSize,), dtype='float64')
-
-    def getActionFeatureVector(self, stateFeature, action):
-        result = np.zeros_like(self.parameters, dtype='int32')
-
-        sfSize = self.mdp.stateFeatureSize
-        for index, a in enumerate(self.mdp.actions):
-            if a == action:
-                result[index * sfSize:(index + 1) * sfSize] = stateFeature
-                break
-
-        return result
-
-    def qFunc(self, stateFeature, action):
-        return np.dot(self.getActionFeatureVector(stateFeature, action), self.parameters)
-
-    def epsilonGreedy(self, stateFeature, epsilon):
-        # argmax_a(q(\hat{s}, a))
-        maxAIndex = 0
-        maxQ = self.qFunc(stateFeature, self.mdp.actions[0])
-
-        for i in range(self.mdp.actionSize):
-            a = self.mdp.actions[i]
-            q = self.qFunc(stateFeature, a)
-            if maxQ < q:
-                maxQ = q
-                maxAIndex = i
-
-        temp = epsilon / self.mdp.actionSize
-
-        # random choose
-        choice = random.random()
-
-        # get action chosen
-        sumProb = 0.0
-        for i in range(self.mdp.actionSize):
-            if i == maxAIndex:
-                sumProb += 1 - epsilon + temp
-            else:
-                sumProb += temp
-            if sumProb >= choice:
-                return self.mdp.actions[i]
-        return self.mdp.actions[-1]
-
-
-def updatePolicy(policy, stateFeature, action, bestQValue, alpha):
-    """
-    alpha: learning rate.
-    """
-    qValue = policy.qFunc(stateFeature, action)
-    error = qValue - bestQValue
-
-    feature = policy.getActionFeatureVector(stateFeature, action)
-    policy.parameters -= alpha * error * feature
 
 
 def featureMCControl(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False):
@@ -199,7 +139,7 @@ def featureMCControl(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False)
             g += rewards[i]
 
         for i in range(len(states)):
-            updatePolicy(policy, sFeatures[i], actions[i], g, alpha)
+            policy.update(sFeatures[i], actions[i], g, alpha)
 
             g -= rewards[i]
             g /= mdp.gamma
@@ -239,7 +179,7 @@ def featureSARSA(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False):
             isTerminal, nextState, reward, nextSFeature = mdp.transform(state, action)
             nextAction = policy.epsilonGreedy(nextSFeature, epsilon)
 
-            updatePolicy(policy, sFeature, action, reward + mdp.gamma * policy.qFunc(nextSFeature, nextAction), alpha)
+            policy.update(sFeature, action, reward + mdp.gamma * policy.qFunc(nextSFeature, nextAction), alpha)
 
             state = nextState
             sFeature = nextSFeature
@@ -286,7 +226,7 @@ def featureQLearning(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False)
                 if maxQ < q:
                     maxQ = q
 
-            updatePolicy(policy, sFeature, action, reward + mdp.gamma * maxQ, alpha)
+            policy.update(sFeature, action, reward + mdp.gamma * maxQ, alpha)
 
             action = policy.epsilonGreedy(nextSFeature, epsilon)
             state = nextState

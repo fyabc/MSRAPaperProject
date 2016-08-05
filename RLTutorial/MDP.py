@@ -2,7 +2,9 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import print_function, unicode_literals
+
 import random
+import numpy as np
 
 __author__ = 'fyabc'
 
@@ -115,6 +117,41 @@ class MDP(object):
             rewardSamples.append(rewardsTmp)
 
         return stateSamples, actionSamples, rewardSamples
+
+
+class FeatureMDP(MDP):
+    def __init__(self, gamma=0.8, feature='wall'):
+        super(FeatureMDP, self).__init__(gamma)
+
+        self.featureType = feature
+        self.features = {}
+        if feature == 'wall':
+            self.features[1] = np.array([1, 0, 0, 1])
+            self.features[2] = np.array([1, 0, 1, 0])
+            self.features[3] = np.array([1, 0, 0, 0])
+            self.features[4] = np.array([1, 0, 1, 0])
+            self.features[5] = np.array([1, 1, 0, 0])
+            self.features[6] = np.array([0, 1, 1, 1])
+            self.features[7] = np.array([0, 1, 1, 1])
+            self.features[8] = np.array([0, 1, 1, 1])
+        elif feature == 'identity':
+            for i in range(1, self.STATE_NUM + 1):
+                self.features[i] = np.array([0 for _ in range(self.STATE_NUM)])
+                self.features[i][i - 1] = 1
+        else:
+            raise KeyError('Unknown feature type')
+
+    @property
+    def sFeatureSize(self):
+        return len(self.features[self.states[0]])
+
+    def getFeature(self, state):
+        """can be implemented by dict lookup or calculate."""
+        return self.features[state]
+
+    def transform(self, state, action):
+        isTerminal, nextState, reward = super(FeatureMDP, self).transform(state, action)
+        return isTerminal, nextState, reward, self.getFeature(nextState)
 
 
 def test():

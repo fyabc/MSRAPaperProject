@@ -4,8 +4,12 @@
 from __future__ import print_function, unicode_literals
 
 import numpy as np
+import random
+import matplotlib.pyplot as plt
 
+from MDP import FeatureMDP
 from policy import Policy
+from utils import getSquareErrorPolicy, getBestQFunc
 import version23
 
 
@@ -95,7 +99,7 @@ class SoftmaxPolicy(Policy):
         feature = self.getActionFeatureVector(sFeature, action)
         prob = self.pFunc(sFeature)
 
-        delta_logJ = feature
+        delta_logJ = np.asarray(feature, dtype='float64')
 
         for i in range(self.mdp.actionSize):
             delta_logJ -= self.getActionFeatureVector(sFeature, self.mdp.actions[i]) * prob[i]
@@ -104,17 +108,74 @@ class SoftmaxPolicy(Policy):
         self.parameters -= alpha * delta_logJ * bestQValue
 
 
-class ValuePolicy(Policy):
-    def __init__(self, featureMDP):
-        super(ValuePolicy, self).__init__(featureMDP)
-
-
 def policyMCControl(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False):
-    pass
+    """
+    qFunc = g_t
+    """
+
+    InitParameter = 0.1
+
+    if echoSE:
+        squareErrors = []
+
+    policy = SoftmaxPolicy(mdp)
+
+    for i in range(len(policy.parameters)):
+        policy.parameters[i] = InitParameter
+
+    for _ in range(iterNum):
+        if echoSE:
+            squareErrors.append(getSquareErrorPolicy(policy))
+
+    if echoSE:
+        return policy, squareErrors
+    else:
+        return policy
 
 
 def policySARSA(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False):
-    pass
+    """
+    Actor-Critic: actor update the policy, critic update the value.
+    """
+
+    InitParameter = 0.1
+
+    if echoSE:
+        squareErrors = []
+
+    policy = SoftmaxPolicy(mdp)
+    valuePolicy = Policy(mdp)
+
+    for i in range(len(policy.parameters)):
+        policy.parameters[i] = InitParameter
+        valuePolicy.parameters[i] = 0.0
+
+    for _ in range(iterNum):
+        if echoSE:
+            squareErrors.append(getSquareErrorPolicy(valuePolicy))
+
+        state = random.choice(mdp.states)
+        sFeature = mdp.getFeature(state)
+        action = random.choice(mdp.actions)
+        isTerminal = False
+
+        count = 0
+        while not isTerminal and count < maxWalkLen:
+            isTerminal, nextState, reward, nextSFeature = mdp.transform(state, action)
+            nextAction = policy.epsilonGreedy(nextSFeature, epsilon)
+
+            valuePolicy.update(sFeature, action,
+                               reward + mdp.gamma * valuePolicy.qFunc(nextSFeature, nextAction), alpha)
+            policy.update(sFeature, action, valuePolicy.qFunc(sFeature, action), alpha)
+
+            sFeature = nextSFeature
+            action = nextAction
+            count += 1
+
+    if echoSE:
+        return policy, squareErrors
+    else:
+        return policy
 
 
 def policyQLearning(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False):
@@ -122,7 +183,22 @@ def policyQLearning(mdp, epsilon, alpha, iterNum, maxWalkLen=100, echoSE=False):
 
 
 def test():
-    pass
+    getBestQFunc()
+
+    iterNum = 6000
+    epsilon = 0.2
+    alpha = 0.01
+    x = [i for i in range(iterNum)]
+
+    mdpId = FeatureMDP(feature='identity')
+
+    policy, se = policySARSA(mdpId, epsilon, alpha, iterNum, echoSE=True)
+    plt.plot(x, se, '-', label='SARSA')
+
+    plt.xlabel(r'number of iterations')
+    plt.ylabel(r'square errors')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':

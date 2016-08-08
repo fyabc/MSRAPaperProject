@@ -15,16 +15,22 @@ learning_rate = 1e-4
 gamma = 0.99  # discount factor for reward
 decay_rate = 0.99  # decay factor for RMSProp leaky sum of grad^2
 resume = False  # resume from previous checkpoint?
-render = True
+render = False
 
 # model initialization
 D = 80 * 80  # input dimensionality: 80x80 grid
 if resume:
-    model = pickle.load(open('save.p', 'rb'))
+    try:
+        model = pickle.load(open('save.p', 'rb'))
+    except FileNotFoundError:
+        model = {
+            'W1': np.random.randn(H, D) / np.sqrt(D),
+            'W2': np.random.randn(H) / np.sqrt(H),
+        }
 else:
     model = {
         'W1': np.random.randn(H, D) / np.sqrt(D),
-        'W2': np.random.randn(H) / np.sqrt(H)
+        'W2': np.random.randn(H) / np.sqrt(H),
     }
 
 grad_buffer = {k: np.zeros_like(v) for k, v in model.iteritems()}  # update buffers that add up gradients over a batch
@@ -149,7 +155,9 @@ while True:
         print 'resetting env. episode %d reward total was %f. running mean: %f. highest: %f'\
               % (episode_number, reward_sum, running_reward, highest_reward)
         if episode_number % 100 == 0:
+            print 'Saving current model at episode %d...' % episode_number,
             pickle.dump(model, open('save.p', 'wb'))
+            print 'done'
         reward_sum = 0
         observation = env.reset()  # reset env
         prev_x = None

@@ -50,6 +50,8 @@ def build_model(
     model = Seq2Seq(voca_size, hidden_size, lstm_layers_num, learning_rate=0.1)
 
     batch_idx = 0
+
+    timeBefore = timeit.default_timer()
     for ep in xrange(max_epochs):
         enIpt = encoderInputs[:, batch_idx * batch_size:(batch_idx + 1) * batch_size]
         deIpt = decoderInputs[:, batch_idx * batch_size:(batch_idx + 1) * batch_size]
@@ -61,6 +63,10 @@ def build_model(
 
         if ep % 20 == 0:
             print "in epoch %d/%d..." % (ep, max_epochs)
+            if ep == 20:
+                timePassed = timeit.default_timer() - timeBefore
+                print "Time cost in an epoch: ", timePassed
+                print "Total time may be: ", timePassed * (max_epochs // 20)
         if batch_idx == 0:
             ot = "in epoch %d/%d..." % (ep, max_epochs) + "	loss:	" + str(loss)
             print ot
@@ -82,7 +88,7 @@ if __name__ == '__main__':
     print "Initializing chatbot..."
     time_start = timeit.default_timer()
 
-    model = build_model(retrain=False, max_epochs=200000, lstm_layers_num=4, dump=True)
+    model = build_model(retrain=False, max_epochs=20000, lstm_layers_num=4, dump=True)
     cbot = Chatbot(model)
 
     time_end = timeit.default_timer()

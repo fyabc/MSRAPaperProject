@@ -14,8 +14,8 @@ batch_size = 10  # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99  # discount factor for reward
 decay_rate = 0.99  # decay factor for RMSProp leaky sum of grad^2
-resume = False  # resume from previous checkpoint?
-render = False
+resume = True  # resume from previous checkpoint?
+render = False  # render the game?
 
 # model initialization
 D = 80 * 80  # input dimensionality: 80x80 grid
@@ -141,11 +141,11 @@ while True:
 
         # perform rmsprop parameter update every batch_size episodes
         if episode_number % batch_size == 0:
-            for k, v in model.iteritems():
-                g = grad_buffer[k]  # gradient
-                rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g ** 2
-                model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
-                grad_buffer[k] = np.zeros_like(v)  # reset batch gradient buffer
+            for key, value in model.iteritems():
+                g = grad_buffer[key]  # gradient
+                rmsprop_cache[key] = decay_rate * rmsprop_cache[key] + (1 - decay_rate) * g ** 2
+                model[key] += learning_rate * g / (np.sqrt(rmsprop_cache[key]) + 1e-5)
+                grad_buffer[key] = np.zeros_like(value)  # reset batch gradient buffer
 
         # boring book-keeping
         running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01

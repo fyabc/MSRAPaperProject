@@ -94,3 +94,4 @@ ENV/
 # Data Files
 seq2seq_chatbot/data/
 KarpathyDRL/save.p
+NN4ContextSensitiveGeneration/config.json

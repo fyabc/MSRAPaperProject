@@ -7,7 +7,8 @@ import json
 
 __author__ = 'fyabc'
 
-Config = json.load(open(os.path.join(os.path.dirname(__file__), 'LSTMTextGeneration.json'), 'r'))
+Config = json.load(open(os.path.join(os.path.dirname(__file__), '..', 'config', 'LSTMTextGeneration.json'), 'r'))
+ParamConfig = Config['parameters']
 
 if __name__ == '__main__':
     print(Config)

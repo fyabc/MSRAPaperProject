@@ -2,21 +2,21 @@
 # -*- encoding: utf-8 -*-
 
 from __future__ import print_function, unicode_literals
-
-from keras.models import Sequential
-from keras.layers import SimpleRNN
+import numpy as np
+from config import Config
 
 __author__ = 'fyabc'
 
-config = {
-    'K': 800,
-    'H': 200,
-}
+H = Config['parameters']['H']
 
 
 def RLM():
-    model = Sequential()
-    model.add(SimpleRNN(config['H'], input_shape=(config['K'],)))
+    model = {
+        'U': None,
+        'V': None,
+        'W': None,
+    }
+    pass
 
 
 def test():

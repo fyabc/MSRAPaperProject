@@ -10,5 +10,9 @@
     "preprocessFiles": {
         "tokens2index": "tokens2index.json",
         "index2tokens": "index2tokens.json"
+    },
+
+    "parameters": {
+        "H": 200
     }
 }

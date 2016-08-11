@@ -62,7 +62,7 @@ def main():
         print()
         print('-' * 50)
         print('Iteration:', i)
-        model.fit(X, y, batch_size=ParamConfig['batchSize'], nb_epoch=1)
+        model.fit(X, y, batch_size=ParamConfig['batchSize'], nb_epoch=ParamConfig['epochNum'])
 
         startIndex = random.randint(0, len(text) - maxLen - 1)
 

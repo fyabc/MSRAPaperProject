@@ -2,6 +2,7 @@
 # -*- encoding: utf-8 -*-
 
 """ Trains an agent with (stochastic) Policy Gradients on Pong. Uses OpenAI Gym. """
+import sys
 import numpy as np
 import cPickle as pickle
 import gym
@@ -14,15 +15,15 @@ batch_size = 10  # every how many episodes to do a param update?
 learning_rate = 1e-4
 gamma = 0.99  # discount factor for reward
 decay_rate = 0.99  # decay factor for RMSProp leaky sum of grad^2
-resume = True  # resume from previous checkpoint?
-render = False  # render the game?
+resume = 'retrain' not in sys.argv  # resume from previous checkpoint?
+render = 'render' in sys.argv  # render the game?
 
 # model initialization
 D = 80 * 80  # input dimensionality: 80x80 grid
 if resume:
     try:
         model = pickle.load(open('save.p', 'rb'))
-    except FileNotFoundError:
+    except IOError:
         model = {
             'W1': np.random.randn(H, D) / np.sqrt(D),
             'W2': np.random.randn(H) / np.sqrt(H),
@@ -152,7 +153,7 @@ while True:
         if running_reward > highest_reward:
             highest_reward = running_reward
 
-        print 'resetting env. episode %d reward total was %f. running mean: %f. highest: %f'\
+        print 'resetting env. episode %d reward total was %f. running mean: %f. highest: %f' \
               % (episode_number, reward_sum, running_reward, highest_reward)
         if episode_number % 100 == 0:
             print 'Saving current model at episode %d...' % episode_number,
@@ -162,6 +163,6 @@ while True:
         observation = env.reset()  # reset env
         prev_x = None
 
-    # if reward != 0:  # Pong has either +1 or -1 reward exactly when game ends.
-    #     print ('ep %d: game finished, reward: %.1f' % (episode_number, reward)) +\
-    #           ('' if reward == -1 else ' !!!!!!!!')
+        # if reward != 0:  # Pong has either +1 or -1 reward exactly when game ends.
+        #     print ('ep %d: game finished, reward: %.1f' % (episode_number, reward)) +\
+        #           ('' if reward == -1 else ' !!!!!!!!')

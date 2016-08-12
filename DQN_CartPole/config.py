@@ -19,7 +19,9 @@ Config = {
         "initEpsilon": 0.5,     # starting value of epsilon
         "finalEpsilon": 0.01,   # final value of epsilon
         "replaySize": 10000,    # experience replay buffer size
-        "batchSize": 32         # size of mini-batch
+        "batchSize": 32,        # size of mini-batch
+        "H": 20,                # size (number of neurons) of hidden layer
+        "initB": 0.1,           # init value of bias nodes
     }
 }
 

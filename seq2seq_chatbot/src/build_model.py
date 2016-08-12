@@ -88,14 +88,17 @@ if __name__ == '__main__':
     print "Initializing chatbot..."
     time_start = timeit.default_timer()
 
-    model = build_model(retrain=False, max_epochs=20000, lstm_layers_num=4, dump=True)
+    model = build_model(retrain=False, max_epochs=200000, lstm_layers_num=4, dump=True)
     cbot = Chatbot(model)
 
     time_end = timeit.default_timer()
-    print "Done initializing chatbot...Time taken:   ", (time_end - time_start)
+    print "Done initializing chatbot...Time taken: %.3fs" % (time_end - time_start)
 
     while True:
-        conva = raw_input("role A: ")
+        try:
+            conva = raw_input("role A: ")
+        except EOFError:
+            break
         convB = cbot.utter(conva)
         print "role B: ", convB, "\n"
 

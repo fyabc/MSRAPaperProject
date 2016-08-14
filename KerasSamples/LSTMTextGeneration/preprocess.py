@@ -4,7 +4,9 @@
 from __future__ import print_function, unicode_literals
 
 import os
+import codecs
 import numpy as np
+import cPickle as pkl
 from config import Config, ParamConfig
 
 __author__ = 'fyabc'
@@ -15,7 +17,7 @@ def _joinPath(*keys):
 
 
 def readFile():
-    return open(_joinPath('dataDir', 'dataFiles')).read().lower()
+    return codecs.open(_joinPath('dataDir', 'dataFiles'), encoding='utf-8').read().lower()
 
 
 def getChars(text):
@@ -47,6 +49,13 @@ def sentence2vector(sentences, nextChars, chars, char2index, maxLen=ParamConfig[
         y[i, char2index[nextChars[i]]] = 1
 
     return X, y
+
+
+def dumpModel(model):
+    modelName = os.path.join(Config['modelDir'], Config['dataFiles'] + '_' + Config['modelFiles'])
+
+    with open(modelName, 'w') as f:
+        pkl.dump(model, f)
 
 
 def test():

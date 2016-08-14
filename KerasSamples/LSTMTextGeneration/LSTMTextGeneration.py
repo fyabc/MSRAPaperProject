@@ -4,7 +4,6 @@
 from __future__ import print_function, unicode_literals
 
 import sys
-import numpy as np
 import random
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout, LSTM
@@ -14,6 +13,18 @@ from config import Config, ParamConfig
 from preprocess import *
 
 __author__ = 'fyabc'
+
+
+def parseCommandLine():
+    argc = len(sys.argv)
+    for i in range(1, argc):
+        words = sys.argv[i].split(':')
+
+        if len(words) != 2:
+            continue
+
+        if words[0] == 'data':
+            Config['dataFiles'] = words[1]
 
 
 def sample(predicts, temperature=ParamConfig['temperature']):
@@ -27,6 +38,9 @@ def sample(predicts, temperature=ParamConfig['temperature']):
 
 
 def main():
+    # parsing command line parameters
+    parseCommandLine()
+
     maxLen = ParamConfig['maxLen']
 
     text = readFile()
@@ -54,6 +68,12 @@ def main():
 
     optimizer = RMSprop(lr=ParamConfig['learningRate'])
     model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+
+    print('done')
+
+    print('Dumping model...', end='')
+
+    dumpModel(model)
 
     print('done')
 

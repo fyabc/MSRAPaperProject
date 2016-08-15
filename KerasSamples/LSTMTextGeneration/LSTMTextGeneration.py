@@ -20,11 +20,13 @@ def parseCommandLine():
     for i in range(1, argc):
         words = sys.argv[i].split(':')
 
-        if len(words) != 2:
-            continue
+        if len(words) == 1:
+            if words[0] == 'retrain':
+                Config['retrain'] = True
 
-        if words[0] == 'data':
-            Config['dataFiles'] = words[1]
+        if len(words) == 2:
+            if words[0] == 'data':
+                Config['dataFiles'] = words[1]
 
 
 def sample(predicts, temperature=ParamConfig['temperature']):
@@ -37,9 +39,31 @@ def sample(predicts, temperature=ParamConfig['temperature']):
     return np.argmax(probabilities)
 
 
+def randomMaxLen(text, maxLen=ParamConfig['maxLen']):
+    startIndex = random.randint(0, len(text) - maxLen - 1)
+    return text[startIndex:startIndex + maxLen]
+
+
+def randomLine(text, maxLen=ParamConfig['maxLen']):
+    index = random.randint(0, len(text) - 1)
+    prevEOL = text.rfind('\n', None, index)
+    nextEOL = text.find('\n', index, None)
+
+    prevEOL = 0 if prevEOL == -1 else prevEOL
+    nextEOL = len(text) if nextEOL == -1 else nextEOL
+
+    result = text[prevEOL:nextEOL + 1]
+    if len(result) > maxLen:
+        result = result[:maxLen]
+
+    return result
+
+
 def main():
     # parsing command line parameters
     parseCommandLine()
+
+    outputFile = getOutputFile()
 
     maxLen = ParamConfig['maxLen']
 
@@ -58,61 +82,89 @@ def main():
     X, y = sentence2vector(sentences, nextChars, chars, char2index)
     print('done')
 
-    # build the model: 2 stacked LSTM
-    print('Building model...', end='')
+    if not Config['retrain']:
+        try:
+            print('Loading exist model...', end='')
+            model = loadModel()
+        except Exception as e:
+            print('an error occurred when loading the model: %s' % e)
+            Config['retrain'] = True
 
-    model = Sequential()
-    model.add(LSTM(ParamConfig['batchSize'], input_shape=(maxLen, charNum)))
-    model.add(Dense(charNum))
-    model.add(Activation('softmax'))
+    if Config['retrain']:
+        # build the model: 2 stacked LSTM
+        print('Building model...', end='')
+        model = Sequential()
+        model.add(LSTM(ParamConfig['batchSize'], input_shape=(maxLen, charNum)))
+        model.add(Dense(charNum))
+        model.add(Activation('softmax'))
 
     optimizer = RMSprop(lr=ParamConfig['learningRate'])
     model.compile(loss='categorical_crossentropy', optimizer=optimizer)
 
     print('done')
 
-    print('Dumping model...', end='')
-
-    dumpModel(model)
-
-    print('done')
-
-    # train the model, output generated text after each iteration
+    # train the model, output generated text before each iteration
     for i in range(1, ParamConfig['iterationNum']):
+        # test
+        for j in range(ParamConfig['sampleNum']):
+            # sentenceInit = randomLine(text)
+            sentenceInit = randomMaxLen(text)
+
+            for diversity in [0.2, 0.5, 1.0, 1.2]:
+                print()
+                print(file=outputFile)
+                print('----- diversity:', diversity, end='')
+                print('----- diversity:', diversity, end='', file=outputFile)
+
+                generated = ''
+
+                sentence = sentenceInit
+                generated += sentence
+
+                print('----- Generating with seed: "' + sentence + '"')
+                print('----- Generating with seed: "' + sentence + '"', file=outputFile)
+                sys.stdout.write(generated)
+                outputFile.write(generated)
+
+                for _ in range(ParamConfig['generateLen']):
+                    x = np.zeros((1, maxLen, charNum))
+                    for t, char in enumerate(sentence):
+                        x[0, t, char2index[char]] = 1.0
+
+                    predicts = model.predict(x, verbose=0)[0]
+
+                    nextChar = index2char[sample(predicts, diversity)]
+
+                    generated += nextChar
+                    sentence += nextChar
+                    if len(sentence) > maxLen:
+                        sentence = sentence[1:]
+
+                    try:
+                        sys.stdout.write(nextChar)
+                        outputFile.write(nextChar)
+                    except UnicodeEncodeError:
+                        sys.stdout.write('$')
+                        outputFile.write('$')
+                    sys.stdout.flush()
+
+                print()
+                print(file=outputFile)
+                outputFile.flush()
+
+        print('Dumping model...', end='')
+        try:
+            dumpModel(model)
+            print('done')
+        except Exception as e:
+            print('an error occurred when dumping the model: %s' % e)
+
         print()
         print('-' * 50)
         print('Iteration:', i)
         model.fit(X, y, batch_size=ParamConfig['batchSize'], nb_epoch=ParamConfig['epochNum'])
 
-        startIndex = random.randint(0, len(text) - maxLen - 1)
-
-        for diversity in [0.2, 0.5, 1.0, 1.2]:
-            print()
-            print('----- diversity:', diversity)
-
-            generated = ''
-            sentence = text[startIndex: startIndex + maxLen]
-            generated += sentence
-
-            print('----- Generating with seed: "' + sentence + '"')
-            sys.stdout.write(generated)
-
-            for _ in range(400):
-                x = np.zeros((1, maxLen, charNum))
-                for t, char in enumerate(sentence):
-                    x[0, t, char2index[char]] = 1.0
-
-                predicts = model.predict(x, verbose=0)[0]
-
-                nextChar = index2char[sample(predicts, diversity)]
-
-                generated += nextChar
-                sentence = sentence[1:] + nextChar
-
-                sys.stdout.write(nextChar)
-                sys.stdout.flush()
-
-            print()
+    outputFile.close()
 
 
 if __name__ == '__main__':

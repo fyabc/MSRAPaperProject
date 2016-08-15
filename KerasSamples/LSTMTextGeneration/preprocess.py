@@ -6,7 +6,7 @@ from __future__ import print_function, unicode_literals
 import os
 import codecs
 import numpy as np
-import cPickle as pkl
+from keras.models import model_from_json
 from config import Config, ParamConfig
 
 __author__ = 'fyabc'
@@ -53,9 +53,30 @@ def sentence2vector(sentences, nextChars, chars, char2index, maxLen=ParamConfig[
 
 def dumpModel(model):
     modelName = os.path.join(Config['modelDir'], Config['dataFiles'] + '_' + Config['modelFiles'])
+    paramName = os.path.join(Config['modelDir'], Config['dataFiles'] + '_' + Config['paramFiles'])
 
     with open(modelName, 'w') as f:
-        pkl.dump(model, f)
+        f.write(model.to_json())
+    model.save_weights(paramName, overwrite=True)
+
+
+def loadModel():
+    modelName = os.path.join(Config['modelDir'], Config['dataFiles'] + '_' + Config['modelFiles'])
+    paramName = os.path.join(Config['modelDir'], Config['dataFiles'] + '_' + Config['paramFiles'])
+
+    with open(modelName, 'r') as f:
+        model = model_from_json(f.read())
+
+    model.load_weights(paramName)
+    return model
+
+
+def getOutputFile():
+    outputName = os.path.join(Config['outputDir'], Config['dataFiles'] + '_' + Config['outputFiles'])
+    try:
+        return codecs.open(outputName, 'a', encoding='utf-8')
+    except Exception:
+        return codecs.open(outputName, 'w', encoding='utf-8')
 
 
 def test():

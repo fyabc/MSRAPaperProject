@@ -60,24 +60,53 @@ class DQN(object):
     DQN Agent.
     """
     def __init__(self, env):
-        self.replayBuffer = deque()
-
         # init parameters
         self.timeStep = 0
+        self.learningRate = ParamConfig['learningRate']
         self.epsilon = ParamConfig["initEpsilon"]
+        self.gamma = ParamConfig['gamma']
+        self.replaySize = ParamConfig['replaySize']
+        self.batchSize = ParamConfig['batchSize']
+        self.H = ParamConfig['H']
+
         self.stateSize = env.observation_space.shape[0]
         self.actionSize = env.action_space.n
+
+        self.replayBuffer = deque(maxlen=self.replaySize)
+
         self.params = {
             'W1': None,
             'b1': None,
             'W2': None,
             'b2': None
         }
+
+        # stateInput: (batchSize, stateSize)
+        #
+        # W1: (stateSize, H)
+        # b1: (H)
+        # hiddenOutput: (batchSize, H)
+        #
+        # W2: (H, actionSize)
+        # b2: (actionSize)
+        # QValue: (batchSize, actionSize)
+        #
+        # actionInput: (batchSize, actionSize)
+        # targetQ: (batchSize)
+        # cost: (1)
+
         self.stateInput = None
-        self.actionInput = None
-        self.labelInput = None
         self.QValue = None
         self.QFunction = None
+
+        # one-hot presentation.
+        self.actionInput = None
+
+        # targetQ is the target Q value.
+        self.targetQ = None
+
+        self.cost = None
+        self.sgd = None
 
         self.createQNetwork()
         self.createTrainingMethod()
@@ -91,18 +120,18 @@ class DQN(object):
         Q = W2 * ReLU(W1 * x + b1) + b2
         """
 
-        self.params['W1'] = shared(name='W1', value=initNorm(ParamConfig['H'], self.stateSize))
-        self.params['b1'] = shared(name='b1', value=np.ones((ParamConfig['H'],), dtype=fX) * ParamConfig['initB'])
-        self.params['W2'] = shared(name='W2', value=initNorm(self.actionSize, ParamConfig['H']))
+        self.params['W1'] = shared(name='W1', value=initNorm(self.stateSize, self.H))
+        self.params['b1'] = shared(name='b1', value=np.ones((self.H,), dtype=fX) * ParamConfig['initB'])
+        self.params['W2'] = shared(name='W2', value=initNorm(self.H, self.actionSize))
         self.params['b2'] = shared(name='b2', value=np.ones((self.actionSize,), dtype=fX) * ParamConfig['initB'])
 
-        self.stateInput = T.vector('x', dtype=fX)
-        hiddenOutput = T.nnet.relu(T.dot(self.params['W1'], self.stateInput) + self.params['b1'])
-        self.QValue = T.dot(self.params['W2'], hiddenOutput) + self.params['b2']
+        self.stateInput = T.matrix('stateInput', dtype=fX)
+        hiddenOutput = T.nnet.relu(T.dot(self.stateInput, self.params['W1']) + self.params['b1'])
+        self.QValue = T.dot(hiddenOutput, self.params['W2']) + self.params['b2']
 
         self.QFunction = function(
             inputs=[self.stateInput],
-            outputs=self.QValue,
+            outputs=self.QValue
         )
 
     def createTrainingMethod(self):
@@ -110,24 +139,79 @@ class DQN(object):
         Create a training method.
         """
 
-        self.actionInput = None
-        self.labelInput = None
+        self.actionInput = T.matrix('actionInput', dtype=fX)
+        self.targetQ = T.vector('targetQ', dtype=fX)
+        QActions = T.sum(self.QValue * self.actionInput, axis=1)
+        self.cost = T.mean(T.square(self.targetQ - QActions))
+
+        gParams = {paramName: T.grad(self.cost, self.params[paramName]) for paramName in self.params}
+
+        updates = [(self.params[paramName], self.params[paramName] - self.learningRate * gParams[paramName])
+                   for paramName in self.params]
+
+        self.sgd = function(
+            inputs=[self.stateInput, self.actionInput, self.targetQ],
+            outputs=self.cost,
+            updates=updates,
+        )
 
     def perceive(self, state, action, reward, nextState, done):
         """
         perceive: 感知
         """
 
-        pass
+        oneHot = self.__makeOneHotAction(action)
+
+        self.replayBuffer.append((state, oneHot, reward, nextState, done))
+
+        if len(self.replayBuffer) > self.batchSize:
+            self.trainQNetwork()
 
     def trainQNetwork(self):
-        pass
+        self.timeStep += 1
+
+        # Step 1: obtain random minibatch from replay memory
+        minibatch = random.sample(self.replayBuffer, self.batchSize)
+        stateBatch = [data[0] for data in minibatch]
+        actionBatch = [data[1] for data in minibatch]
+        rewardBatch = [data[2] for data in minibatch]
+        nextStateBatch = [data[3] for data in minibatch]
+
+        # Step 2: calculate y
+        yBatch = []
+        QValueBatch = self.QFunction(np.asmatrix(nextStateBatch, dtype=fX))
+
+        for i in range(self.batchSize):
+            done = minibatch[i][4]
+            if done:
+                yBatch.append(rewardBatch[i])
+            else:
+                yBatch.append(rewardBatch[i] + self.gamma * np.max(QValueBatch[i]))
+
+        self.sgd(
+            stateInput=np.asmatrix(stateBatch, dtype=fX),
+            actionInput=np.asmatrix(actionBatch, dtype=fX),
+            targetQ=np.asarray(yBatch, dtype=fX),
+        )
 
     def epsilonGreedyAction(self, state):
-        pass
+        QValue = self.QFunction(np.asmatrix(state, dtype=fX))[0]
+
+        if random.random() <= self.epsilon:
+            self.epsilon -= (ParamConfig['initEpsilon'] - ParamConfig['finalEpsilon']) / 10000
+            return random.randint(0, self.actionSize - 1)
+        else:
+            self.epsilon -= (ParamConfig['initEpsilon'] - ParamConfig['finalEpsilon']) / 10000
+            return np.argmax(QValue)
 
     def greedyAction(self, state):
-        pass
+        return np.argmax(self.QFunction(np.asmatrix(state, dtype=fX))[0])
+
+    def __makeOneHotAction(self, action):
+        oneHot = np.zeros(self.actionSize)
+        oneHot[action] = 1
+
+        return oneHot
 
 
 def main():
@@ -142,7 +226,7 @@ def main():
         # Train
         for step in range(ParamConfig["step"]):
             # epsilon-greedy action for train
-            action = agent.greedyAction(state)
+            action = agent.epsilonGreedyAction(state)
             nextState, reward, done, _ = env.step(action)
 
             # define reward for agent
@@ -171,7 +255,8 @@ def main():
             avgReward = totalReward / ParamConfig['test']
 
             print('Episode:', episode, 'Evaluation Average Reward:', avgReward)
-            if avgReward >= 200:
+            if avgReward >= ParamConfig['acceptThreshold']:
+                print("The average reward has been high enough, iteration break!")
                 break
 
     # # Save results for uploading
@@ -190,15 +275,22 @@ def main():
     # env.monitor.close()
 
 
-if __name__ == '__main__':
-    # main()
+def miniTest():
     env = gym.make(Config["environment"])
     agent = DQN(env)
     for param in agent.params:
         print(param, agent.params[param].get_value())
     try:
         print('State size:', agent.stateSize)
-        print(agent.QFunction(np.asarray(env.step(0)[0], dtype=fX)))
+        state = env.step(0)[0]
+        nState = np.asarray(state, dtype=fX)
+        print(agent.QFunction(np.matrix(state, dtype=fX)))
+        print(agent.epsilonGreedyAction(nState))
     except Exception as e:
         print('==============================')
         print(e)
+
+
+if __name__ == '__main__':
+    main()
+    # miniTest()

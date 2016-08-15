@@ -23,7 +23,7 @@ Config = {
         "batchSize": 32,        # size of mini-batch
         "H": 20,                # size (number of neurons) of hidden layer
         "initB": 0.1,           # init value of bias nodes
-        "acceptThreshold": 220  # the threshold that we will accept the result
+        "acceptThreshold": 295  # the threshold that we will accept the result
     }
 }
 

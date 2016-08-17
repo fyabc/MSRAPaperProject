@@ -82,6 +82,8 @@ class Momentum(Optimizer):
         self.learningRate = learningRate
         self.alpha = alpha
 
+        self.build(inputs)
+
     def build(self, inputs):
         gVariables = self.getGParameters()
 

@@ -6,8 +6,8 @@ from __future__ import unicode_literals, print_function
 import theano.tensor as T
 from theano import config, function
 
-from .loss import MSE
-from .optimizers import SGD
+from loss import MSE
+from optimizers import SGD
 
 __author__ = 'fyabc'
 

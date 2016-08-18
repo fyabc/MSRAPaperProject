@@ -7,7 +7,7 @@ import numpy as np
 import theano.tensor as T
 from theano import shared, config
 
-from MyMLFramework.model import SimpleModel, Model
+from model import SimpleModel, Model
 from layers.layer import Dense
 from layers.activations import Activation
 

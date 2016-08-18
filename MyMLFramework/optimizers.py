@@ -12,6 +12,29 @@ __author__ = 'fyabc'
 
 
 class Optimizer(object):
+    def getFunction(self, loss, inputs, target, parameters):
+        pass
+
+
+class SGD(Optimizer):
+    def __init__(self, learningRate=0.01):
+        self.learningRate = learningRate
+
+    def getFunction(self, loss, inputs, target, parameters):
+        updates = [(parameter, parameter - self.learningRate * T.grad(loss, parameter)) for parameter in parameters]
+
+        return function(
+            inputs=[inputs, target],
+            outputs=loss,
+            updates=updates
+        )
+
+
+class SAOptimizer(object):
+    """
+    Stand alone optimizer, do not depend to any models.
+    """
+
     __metaclass__ = ABCMeta
 
     def __init__(self, cost, parameters):
@@ -57,9 +80,9 @@ class Optimizer(object):
                 stepNum += 1
 
 
-class SGD(Optimizer):
+class SGD_SA(SAOptimizer):
     def __init__(self, cost, inputs, parameters, learningRate=0.01):
-        super(SGD, self).__init__(cost, parameters)
+        super(SGD_SA, self).__init__(cost, parameters)
         self.learningRate = learningRate
 
         self.build(inputs)
@@ -76,7 +99,7 @@ class SGD(Optimizer):
         )
 
 
-class Momentum(Optimizer):
+class Momentum(SAOptimizer):
     def __init__(self, cost, inputs, parameters, learningRate, alpha):
         super(Momentum, self).__init__(cost, parameters)
         self.learningRate = learningRate
@@ -115,7 +138,7 @@ def testSGD():
     y = T.matrix('y', dtype=a.dtype)
     fx = T.sin(a * x) + a + 1.0
     cost = T.sum((fx - y) ** 2)
-    optimizer = SGD(cost, [x, y], [a])
+    optimizer = SGD_SA(cost, [x, y], [a])
 
     data = np.asmatrix([[_, target(_)] for _ in np.linspace(-10.0, 10.0, 400)], dtype=a.dtype)
     optimizer.train(data, batchSize=3)

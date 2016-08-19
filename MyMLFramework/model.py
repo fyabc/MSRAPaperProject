@@ -7,6 +7,7 @@ import theano.tensor as T
 from theano import config, function
 
 from loss import MSE
+from regularizers import L2
 from optimizers import SGD
 
 __author__ = 'fyabc'
@@ -35,6 +36,7 @@ class SimpleModel(object):
         :param operation: a callable, input from previous layer, then get output of this layer.
         :param parameters: parameters to be optimized, should be Theano's shared variables.
         """
+
         self.output = operation(self.output)
         for parameter in parameters:
             self.parameters.append(parameter)
@@ -65,6 +67,7 @@ class Model(object):
         self.output = None
         self.outputShape = None
 
+        self._resultFunction = None
         self.objectiveFunction = None
 
         self.layers = []
@@ -101,14 +104,27 @@ class Model(object):
 
         self.outputShape = layer.outputShape
 
-    def compile(self, optimizer=None, loss=None):
+    @property
+    def resultFunction(self):
+        if self._resultFunction is None:
+            self._resultFunction = function(
+                inputs=self.input,
+                outputs=self.output,
+            )
+        return self._resultFunction
+
+    def compile(self, optimizer=None, loss=None, regularize=None):
         if optimizer is None:
             optimizer = SGD()
 
         if loss is None:
             loss = MSE()
 
+        if regularize is None:
+            # regularize = L2()
+            regularize = lambda parameters: 0
+
         target = self.output.clone()
-        lossValue = loss(self.output, target)
+        lossValue = loss(self.output, target) + regularize(self.parameters)
 
         self.objectiveFunction = optimizer.getFunction(lossValue, self.input, target, self.parameters)

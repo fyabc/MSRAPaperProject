@@ -42,19 +42,29 @@ class Dense(NNLayer):
     output = input .* W + b
     """
 
-    def __init__(self, outputShape, inputShape=None, initType='norm'):
+    def __init__(self, outputShape, inputShape=None, initType='norm', bias=True):
         self.initType = initType
+        self.bias = bias
         super(Dense, self).__init__(outputShape, inputShape)
 
     def makeFunction(self):
-        self.parameters = [
-            shared(
-                value=_initNorm(self.inputShape[-1], self.outputShape[-1]),
-                name='W'
-            ),
-            shared(
-                value=_initNorm(self.outputShape[-1]),
-                name='b'
-            )
-        ]
-        self.function = lambda x: T.dot(x, self.parameters[0]) + self.parameters[1]
+        if self.bias:
+            self.parameters = [
+                shared(
+                    value=_initNorm(self.inputShape[-1], self.outputShape[-1]),
+                    name='W'
+                ),
+                shared(
+                    value=_initNorm(self.outputShape[-1]),
+                    name='b'
+                )
+            ]
+            self.function = lambda x: T.dot(x, self.parameters[0]) + self.parameters[1]
+        else:
+            self.parameters = [
+                shared(
+                    value=_initNorm(self.inputShape[-1], self.outputShape[-1]),
+                    name='W'
+                ),
+            ]
+            self.function = lambda x: T.dot(x, self.parameters[0])

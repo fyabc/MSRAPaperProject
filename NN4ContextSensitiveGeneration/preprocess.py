@@ -5,7 +5,7 @@ from __future__ import print_function, unicode_literals
 import os
 import json
 import time
-from config import Config
+from config import Config, ParamConfig
 
 __author__ = 'fyabc'
 
@@ -40,21 +40,55 @@ def getTokensIterator(inputList, inputType='file'):
                 yield word
 
 
-def getTokensMap(iterTokens):
+def getCharIterator(inputList, inputType='file'):
+    if inputType == 'file':
+        for fileName in inputList:
+            with open(fileName, 'r') as f:
+                for line in f:
+                    for char in line:
+                        yield char
+    elif inputType == 'str':
+        for string in inputList:
+            for char in string:
+                yield char
+
+
+def getTokensMap(iterTokens, defaultTokens=('<SOS>', '<EOS>', '<UNK>')):
+    """
+
+    :param iterTokens: tokens iterator.
+    :param defaultTokens: default tokens to be add.
+        <SOS>:  Start of sentence
+        <EOS>:  End of sentence
+        <UNK>:  Unknown
+    :return:
+    """
+
     tokens2Index = {}
     index2Tokens = {}
 
-    currentIndex = 0
+    class _TokenAdder(object):
+        def __init__(self):
+            self.currentIndex = 0
+
+        def add(self, token_):
+            if token_ not in tokens2Index:
+                tokens2Index[token_] = self.currentIndex
+                index2Tokens[self.currentIndex] = token_
+                self.currentIndex += 1
+
+    _adder = _TokenAdder()
+
+    for token in defaultTokens:
+        _adder.add(token)
+
     for token in iterTokens:
-        if token not in tokens2Index:
-            tokens2Index[token] = currentIndex
-            index2Tokens[currentIndex] = token
-            currentIndex += 1
+        _adder.add(token)
 
     return tokens2Index, index2Tokens
 
 
-def parseTwitterData():
+def getFileNameList():
     fileNameList = [
         Config['dataFiles']['train'][0],
         Config['dataFiles']['train'][1],
@@ -67,7 +101,19 @@ def parseTwitterData():
     for i in range(len(fileNameList)):
         fileNameList[i] = os.path.join(Config['dataDir'], fileNameList[i])
 
-    tokens2Index, index2Tokens = getTokensMap(getTokensIterator(fileNameList))
+    return fileNameList
+
+
+def parseTwitterData(level=ParamConfig['level']):
+    """
+    Parse Twitter data, and dump it into JSON files.
+    :param level: the level of tokenizing. 'Char' or 'Tokens'.
+    :return: the number of all different tokens.
+    """
+
+    fileNameList = getFileNameList()
+
+    tokens2Index, index2Tokens = getTokensMap(eval('get%sIterator(fileNameList)' % level))
 
     with open(os.path.join(Config['preprocessDir'], Config['preprocessFiles']['tokens2index']), 'w') as t2i:
         json.dump(tokens2Index, t2i)
@@ -75,6 +121,15 @@ def parseTwitterData():
         json.dump(index2Tokens, i2t)
 
     return len(tokens2Index)
+
+
+def readTokensMapFile():
+    with open(os.path.join(Config['preprocessDir'], Config['preprocessFiles']['tokens2index']), 'r') as t2i:
+        tokens2Index = json.load(t2i)
+    with open(os.path.join(Config['preprocessDir'], Config['preprocessFiles']['index2tokens']), 'r') as i2t:
+        index2Tokens = json.load(i2t)
+
+    return tokens2Index, index2Tokens
 
 
 def test():

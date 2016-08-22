@@ -40,7 +40,7 @@ class RLM(object):
         h_t (in R^{H x 1})          output of hidden layer @ time t
         z_t (in R^{K x 1})          pooling input of output layer @ time t
         f_1, f_2                    activation function of hidden layer and output layer (tanh, sigmoid, etc)
-                                    f_2 should be sigmoid to output values between 0 and 1
+                                    f_2 should be sigmoid to output values between 0 and 1?
 
         r_t = \hat{y}_t - y_t       residual vector
 
@@ -81,7 +81,7 @@ class RLM(object):
         # Some hyper-parameters
         self.K = len(self.tokens2Index)
         self.H = H
-        self.learningRate = shared(toFX(0.01))
+        self.learningRate = shared(toFX(0.05))
 
         # Parameters to be trained
         self.W = shared(name='W', value=self.initNorm(self.H, self.K))
@@ -100,6 +100,8 @@ class RLM(object):
             h_t = T.tanh(s_t)
 
             z_t = T.dot(self.V, h_t)
+            # hat_y_t = T.nnet.softmax(z_t)
+            # hat_y_t = hat_y_t.reshape((hat_y_t.shape[1],))
             hat_y_t = T.nnet.sigmoid(z_t)
 
             return h_t, hat_y_t
@@ -119,7 +121,8 @@ class RLM(object):
         )
 
         # The loss (cross entropy)
-        self.E = T.sum(-self.y * T.log(self.hat_y))
+        self.E = T.sum(-self.y * T.log(self.hat_y))\
+            # + 0.1 * T.sum([T.sum(parameter ** 2) for parameter in self.parameters])
 
         # SGD optimizer
         updates = [(parameter, parameter - self.learningRate * T.grad(self.E, parameter))
@@ -149,6 +152,10 @@ class RLM(object):
         elif self.level == 'Tokens':
             return ' '.join(iterTokens)
 
+    @staticmethod
+    def accuracy(y, hat_y):
+        return sum((i1 == i2 for i1, i2 in zip(np.argmax(y, axis=1), np.argmax(hat_y, axis=1))), 0.0) / len(hat_y)
+
     def iterSentences(self, fileName):
         with open(fileName, 'r') as f:
             for line in f:
@@ -166,6 +173,8 @@ def test():
 
     postTrain, resTrain, postValid, trainValid, postTest, resTest = getFileNameList()
 
+    losses = []
+
     for i, (post, res) in enumerate(zip(model.iterSentences(postTrain), model.iterSentences(resTrain))):
         x = model.tokens2Matrix(post)
         y = model.tokens2Matrix(res)
@@ -175,20 +184,28 @@ def test():
         x, y = x[:minLen], y[:minLen]
 
         loss = model.sgd(x, y)
+        losses.append(loss)
 
         if i % 10000 == 0:
-            model.learningRate.set_value(model.learningRate.get_value() * toFX(0.7))
+            model.learningRate.set_value(model.learningRate.get_value() * toFX(0.6))
 
         if i % 1000 == 0:
             h, hat_y = model.outputFunction(x)
+            post = post[:-1] if post[-1] == '\n' else post
+            res = res[:-1] if res[-1] == '\n' else res
             genRes = model.matrix2Tokens(hat_y)
-            print('Iter   :', i)
-            print('Loss   :', loss)
-            print('Post   :', post[:-1])
-            print('Res    :', res[:-1])
-            print('Gen res:', genRes)
-            print(np.sum(model.W.get_value()))
+            print('Iter         :', i)
+            print('Learning Rate:', model.learningRate.get_value())
+            print('Loss         :', loss)
+            print('Post         :', post)
+            print('Res          :', res)
+            print('Gen res      :', genRes)
+            print('Accuracy     :', model.accuracy(y, hat_y))
             print()
+
+    import matplotlib.pyplot as plt
+    plt.plot(list(xrange(i + 1)), losses)
+    plt.show()
 
 
 if __name__ == '__main__':

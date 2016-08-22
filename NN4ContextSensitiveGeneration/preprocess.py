@@ -115,18 +115,22 @@ def parseTwitterData(level=ParamConfig['level']):
 
     tokens2Index, index2Tokens = getTokensMap(eval('get%sIterator(fileNameList)' % level))
 
-    with open(os.path.join(Config['preprocessDir'], Config['preprocessFiles']['tokens2index']), 'w') as t2i:
+    with open(os.path.join(Config['preprocessDir'],
+                           level + '_' + Config['preprocessFiles']['tokens2index']), 'w') as t2i:
         json.dump(tokens2Index, t2i)
-    with open(os.path.join(Config['preprocessDir'], Config['preprocessFiles']['index2tokens']), 'w') as i2t:
+    with open(os.path.join(Config['preprocessDir'],
+                           level + '_' + Config['preprocessFiles']['index2tokens']), 'w') as i2t:
         json.dump(index2Tokens, i2t)
 
     return len(tokens2Index)
 
 
-def readTokensMapFile():
-    with open(os.path.join(Config['preprocessDir'], Config['preprocessFiles']['tokens2index']), 'r') as t2i:
+def readTokensMapFile(level=ParamConfig['level']):
+    with open(os.path.join(Config['preprocessDir'],
+                           level + '_' + Config['preprocessFiles']['tokens2index']), 'r') as t2i:
         tokens2Index = json.load(t2i)
-    with open(os.path.join(Config['preprocessDir'], Config['preprocessFiles']['index2tokens']), 'r') as i2t:
+    with open(os.path.join(Config['preprocessDir'],
+                           level + '_' + Config['preprocessFiles']['index2tokens']), 'r') as i2t:
         index2Tokens = json.load(i2t)
 
     return tokens2Index, index2Tokens

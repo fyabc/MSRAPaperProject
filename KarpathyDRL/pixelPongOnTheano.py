@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#! /usr/bin/python
 # -*- encoding: utf-8 -*-
 
 from __future__ import unicode_literals, print_function
@@ -13,6 +13,8 @@ import gym
 __author__ = 'fyabc'
 
 """
+Trains an agent with (stochastic) Policy Gradients on Pong. Uses OpenAI Gym.
+
 Policy Network:
     h = W1 .* x
     logP = W2 .* ReLU(h)
@@ -31,6 +33,10 @@ Config = {
 D, H = Config['D'], Config['H']
 
 previous = None
+
+
+def toFX(value):
+    return eval('np.%s(value)' % fX)
 
 
 def preprocess(ob):
@@ -63,24 +69,21 @@ class PolicyNetwork(object):
         else:
             W1Value, W2Value = self.load()
 
-        self.parameters = []
+        self.W1 = shared(name='W1', value=W1Value)
+        self.W2 = shared(name='W2', value=W2Value)
+        self.parameters = [self.W1, self.W2]
+
         self.x = T.vector('x', dtype=fX)
 
-        W1 = shared(name='W1', value=W1Value)
-        self.parameters.append(W1)
+        self.h = T.dot(self.W1, self.x)
+        self.h = T.nnet.relu(self.h)
 
-        h = T.dot(W1, self.x)
-        h = T.nnet.relu(h)
-
-        W2 = shared(name='W2', value=W2Value)
-        self.parameters.append(W2)
-
-        logP = T.dot(W2, h)
-        p = T.nnet.sigmoid(logP)
+        logP = T.dot(self.W2, self.h)
+        self.p = T.nnet.sigmoid(logP)
 
         self.policyFunction = function(
             inputs=[self.x],
-            outputs=p
+            outputs=self.p
         )
 
     def dump(self):

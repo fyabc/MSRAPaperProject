@@ -12,9 +12,9 @@ class LSTM(object):
 
         self.hidden_size = hidden_size
 
-        # lstm W matrixes, Wf, Wi, Wo, Wc respectively, all config.floatX type
+        # lstm W matrices, Wf, Wi, Wo, Wc respectively, all config.floatX type
         self.W = theano.shared(name="W", value=utils.init_norm(self.hidden_size, 4 * self.hidden_size), borrow=True)
-        # lstm U matrixes, Uf, Ui, Uo, Uc respectively, all config.floatX type
+        # lstm U matrices, Uf, Ui, Uo, Uc respectively, all config.floatX type
         self.U = theano.shared(name="U", value=utils.init_norm(self.hidden_size, 4 * self.hidden_size), borrow=True)
         # lstm b vectors, bf, bi, bo, bc respectively, all config.floatX type
         self.b = theano.shared(name="b", value=np.zeros(4 * self.hidden_size, dtype=theano.config.floatX), borrow=True)
@@ -31,24 +31,24 @@ class LSTM(object):
         else:
             batch_size = 1
 
-        if h0 == None:
+        if h0 is None:
             h0 = tensor.alloc(np.asarray(0., dtype=theano.config.floatX), batch_size, self.hidden_size)
-        if C0 == None:
+        if C0 is None:
             C0 = tensor.alloc(np.asarray(0., dtype=theano.config.floatX), batch_size, self.hidden_size)
 
         def _step(m, X, h_, C_, W, U, b):
             XW = tensor.dot(X, W)  # (batch_size, 4*hidden_size)
             h_U = tensor.dot(h_, U)  # (batch_size, 4*hidden_size)
             # before activation,       (batch_size, 4*hidden_size)
-            bfr_actv = XW + h_U + b
+            bfr_active = XW + h_U + b
 
-            f = tensor.nnet.sigmoid(bfr_actv[:, 0:self.hidden_size])  # forget gate (batch_size, hidden_size)
+            f = tensor.nnet.sigmoid(bfr_active[:, 0:self.hidden_size])  # forget gate (batch_size, hidden_size)
             i = tensor.nnet.sigmoid(
-                bfr_actv[:, 1 * self.hidden_size:2 * self.hidden_size])  # input gate (batch_size, hidden_size)
+                bfr_active[:, 1 * self.hidden_size:2 * self.hidden_size])  # input gate (batch_size, hidden_size)
             o = tensor.nnet.sigmoid(
-                bfr_actv[:, 2 * self.hidden_size:3 * self.hidden_size])  # output  gate (batch_size, hidden_size)
+                bfr_active[:, 2 * self.hidden_size:3 * self.hidden_size])  # output  gate (batch_size, hidden_size)
             Cp = tensor.tanh(
-                bfr_actv[:, 3 * self.hidden_size:4 * self.hidden_size])  # candi states (batch_size, hidden_size)
+                bfr_active[:, 3 * self.hidden_size:4 * self.hidden_size])  # candi states (batch_size, hidden_size)
 
             C = i * Cp + f * C_
             C = m[:, None] * C + (1.0 - m)[:, None] * C_
@@ -71,8 +71,8 @@ class LSTM(object):
 
 
 class Seq2Seq(object):
-    def __init__(self, voca_size, hidden_size, lstm_layers_num, learning_rate=0.2):
-        self.voca_size = voca_size
+    def __init__(self, vocab_size, hidden_size, lstm_layers_num, learning_rate=0.2):
+        self.vocab_size = vocab_size
         self.hidden_size = hidden_size
         self.lstm_layers_num = lstm_layers_num
         self.learning_rate = learning_rate
@@ -87,38 +87,38 @@ class Seq2Seq(object):
         encoderInputs, encoderMask = tensor.imatrices(2)
         decoderInputs, decoderMask, decoderTarget = tensor.imatrices(3)
 
-        self.lookuptable = theano.shared(
+        self.lookup_table = theano.shared(
             name="Encoder LookUpTable",
-            value=utils.init_norm(self.voca_size, self.hidden_size),
+            value=utils.init_norm(self.vocab_size, self.hidden_size),
             borrow=True
         )
         self.linear = theano.shared(
             name="Linear",
-            value=utils.init_norm(self.hidden_size, self.voca_size),
+            value=utils.init_norm(self.hidden_size, self.vocab_size),
             borrow=True
         )
-        self.params += [self.lookuptable, self.linear]  # concatenate
+        self.params += [self.lookup_table, self.linear]  # concatenate
 
         # (max_sent_size, batch_size, hidden_size)
-        state_below = self.lookuptable[encoderInputs.flatten()].reshape(
+        state_below = self.lookup_table[encoderInputs.flatten()].reshape(
             (encoderInputs.shape[0], encoderInputs.shape[1], self.hidden_size))
         for _ in range(self.lstm_layers_num):
-            enclstm = LSTM(self.hidden_size)
-            self.encoder_lstm_layers += enclstm,  # append
-            self.params += enclstm.params  # concatenate
-            hs, Cs = enclstm.forward(state_below, encoderMask)
+            enc_lstm = LSTM(self.hidden_size)
+            self.encoder_lstm_layers += enc_lstm,  # append
+            self.params += enc_lstm.params  # concatenate
+            hs, Cs = enc_lstm.forward(state_below, encoderMask)
             self.hos += hs[-1],
             self.Cos += Cs[-1],
             state_below = hs
 
-        state_below = self.lookuptable[decoderInputs.flatten()].reshape(
+        state_below = self.lookup_table[decoderInputs.flatten()].reshape(
             (decoderInputs.shape[0], decoderInputs.shape[1], self.hidden_size))
         for i in range(self.lstm_layers_num):
-            declstm = LSTM(self.hidden_size)
-            self.decoder_lstm_layers += declstm,  # append
-            self.params += declstm.params  # concatenate
+            dec_lstm = LSTM(self.hidden_size)
+            self.decoder_lstm_layers += dec_lstm,  # append
+            self.params += dec_lstm.params  # concatenate
             ho, Co = self.hos[i], self.Cos[i]
-            state_below, Cs = declstm.forward(state_below, decoderMask, ho, Co)
+            state_below, Cs = dec_lstm.forward(state_below, decoderMask, ho, Co)
         decoder_lstm_outputs = state_below
 
         ei, em, di, dm, dt = tensor.imatrices(5)  # place holders
@@ -136,8 +136,8 @@ class Seq2Seq(object):
         costs, updates = theano.scan(fn=_NLL, sequences=[softmax_outputs, decoderTarget, decoderMask])
         loss = costs.sum() / decoderMask.sum()
 
-        gparams = [tensor.grad(loss, param) for param in self.params]
-        updates = [(param, param - self.learning_rate * gparam) for param, gparam in zip(self.params, gparams)]
+        g_params = [tensor.grad(loss, param) for param in self.params]
+        updates = [(param, param - self.learning_rate * gparam) for param, gparam in zip(self.params, g_params)]
 
         self._train = theano.function(
             inputs=[ei, em, di, dm, dt],
@@ -151,9 +151,9 @@ class Seq2Seq(object):
         token_idxs = tensor.fill(tensor.zeros_like(decoderInputs, dtype="int32"), utils.idx_start)
         msk = tensor.fill((tensor.zeros_like(decoderInputs, dtype="int32")), 1)
 
-        def _step(token_idxs, hs_, Cs_):
+        def _step(token_indexes, hs_, Cs_):
             hs, Cs = [], []
-            state_below = self.lookuptable[token_idxs].reshape(
+            state_below = self.lookup_table[token_indexes].reshape(
                 (decoderInputs.shape[0], decoderInputs.shape[1], self.hidden_size))
             for i, lstm in enumerate(self.decoder_lstm_layers):
                 h, C = lstm.forward(state_below, msk, hs_[i], Cs_[i])  # mind msk
@@ -169,10 +169,10 @@ class Seq2Seq(object):
             outputs_info=[token_idxs, hs0, Cs0],
             n_steps=utils.max_sent_size
         )
-        listof_token_idx = outputs[0]
+        list_of_token_idx = outputs[0]
         self._utter = theano.function(
             inputs=[ei, em, di],
-            outputs=listof_token_idx,
+            outputs=list_of_token_idx,
             givens={encoderInputs: ei, encoderMask: em, decoderInputs: di}
             # givens={encoderInputs:ei, encoderMask:em}
         )

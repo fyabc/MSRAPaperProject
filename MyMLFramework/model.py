@@ -3,6 +3,9 @@
 
 from __future__ import unicode_literals, print_function
 
+import cPickle as pkl
+import json
+
 import theano.tensor as T
 from theano import config, function
 
@@ -128,3 +131,15 @@ class Model(object):
         lossValue = loss(self.output, target) + regularize(self.parameters)
 
         self.objectiveFunction = optimizer.getFunction(lossValue, self.input, target, self.parameters)
+
+    def saveParameters(self, file_, type_='pkl'):
+        values = [parameter.get_value() for parameter in self.parameters]
+        if type_ == 'pkl':
+            pkl.dump(values, file_)
+        elif type_ == 'json':
+            json.dump(values, file_)
+        else:
+            raise ValueError('Cannot save parameters in type {}'.format(type_))
+
+    def loadParameters(self, file_, type_='pkl'):
+        pass

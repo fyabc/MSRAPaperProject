@@ -96,3 +96,4 @@ seq2seq_chatbot/data/
 KarpathyDRL/save.p
 NN4ContextSensitiveGeneration/config.json
 KerasSamples/config
+RL4CO/data/

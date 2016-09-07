@@ -191,20 +191,7 @@ def antQ(distances, agents):
 def main():
     M = 0
 
-    distances = np.array([
-        [M, 1, 2, 3],
-        [1, M, 4, 1],
-        [2, 4, M, 2],
-        [3, 1, 2, M],
-    ], dtype=fX)
-
-    distances = np.abs(np.random.randn(30, 30))
-    for i in range(6):
-        distances[i, i] = M
-
-    n = distances.shape[0]
-
-    agents = [Agent(c, n) for c in range(n)]
+    distances = np.genfromtxt('')
 
     antQ(distances, agents)
 

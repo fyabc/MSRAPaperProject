@@ -4,14 +4,17 @@
 from __future__ import print_function, unicode_literals
 
 import numpy as np
-import random
 
 __author__ = 'fyabc'
 
 
 Config = {
+    'dataset': 'att48',
+
     'delayed_reinforcement': 'iteration_best',
     'floatX': 'float64',
+
+    'iteration_num': 300,
 
     'parameters': {
         'delta': 1.,
@@ -23,9 +26,22 @@ Config = {
     }
 }
 
+Config['distances_file'] = 'data/{}_d.txt'.format(Config['dataset'])
+Config['best_result_file'] = 'data/{}_s.txt'.format(Config['dataset'])
+
 fX = Config['floatX']
 
 ParamConfig = Config['parameters']
+
+
+def get_best_result(distances, filename=Config['best_result_file']):
+    result = 0.
+
+    cities = map(lambda l: int(l.strip()) - 1, list(open(filename, 'r')))
+    for i in range(len(cities) - 1):
+        result += distances[cities[i], cities[i + 1]]
+
+    return result, cities
 
 
 def unlimited_range(start=0, step=1):
@@ -66,6 +82,9 @@ class Agent(object):
     def get_length(self, distances):
         return sum(map(lambda e: distances[e], self.tour))
 
+    def repr_tour(self):
+        return [pair[0] for pair in self.tour] + [self.start_city]
+
 
 def antQ(distances, agents):
     # 0.
@@ -81,19 +100,19 @@ def antQ(distances, agents):
 
     # 1.
     # Initialize
-    AQ0 = 1. / (n * np.average(distances))
+    AQ0 = 1. / (n * np.sum(distances) / ((n - 1) ** 2))
     AQ = np.ones((n, n), dtype=fX) * AQ0
 
     HE = 1. / distances
 
-    m = len(agents)
-
-    total_lengths = np.zeros((m,), dtype=fX)
+    total_best_length_idx = 0
     total_best_length = np.sum(distances)
     total_best_tour = None
 
+    best_lengths_record = []
+
     for iteration in unlimited_range(1):
-        print('[Iteration {}]'.format(iteration))
+        # print('[Iteration {}]'.format(iteration))
 
         for agent in agents:
             agent.reset()
@@ -101,29 +120,22 @@ def antQ(distances, agents):
         # 2.
         # This is the step in which agents build their tours.
         # The tour of agent k is stored in Tour_k.
-        # Given that local reinforcement is always null, only the next state evaluation is used to update AQ-values.
-
+        # Given that local reinforcement is always null,
+        # only the next state evaluation is used to update AQ-values.
         for i in range(n):
             if i != n - 1:
                 for agent in agents:
                     r = agent.location
+                    values = [
+                        (AQ[r, u] ** delta) * (HE[r, u] ** beta) if u in agent.remain_cities else 0.
+                        for u in range(n)
+                    ]
 
                     # Choose the next city s_k according to formula(1)
                     if np.random.random() < q_0:
-                        argmax_city = -1
-                        argmax_value = -1.
-
-                        for u in agent.remain_cities:
-                            value = (AQ[r, u] ** delta) * (HE[r, u] ** beta)
-
-                            if value > argmax_value:
-                                argmax_value = value
-                                argmax_city = u
-
-                        agent.next_city = argmax_city
+                        agent.next_city = np.argmax(values)
                     else:
-                        # TODO
-                        agent.next_city = np.random.choice(list(agent.remain_cities))
+                        agent.next_city = np.argmax(np.random.multinomial(1, values / np.sum(values)))
 
                     agent.remain_cities.discard(agent.next_city)
                     if i == n - 2:
@@ -157,43 +169,54 @@ def antQ(distances, agents):
 
         if Config['delayed_reinforcement'] == 'global_best':
             # Global-best
-            pass
+            best_agent = total_best_length_idx
         else:
             # Iteration-best
-            agent_ib = np.argmax(lengths)
-            for (r, s) in agents[agent_ib].tour:
-                deltaAQ[r, s] = W / lengths[agent_ib]
+            best_agent = np.argmin(lengths)
+        for pair in agents[best_agent].tour:
+            deltaAQ[pair] = W / lengths[best_agent]
 
         # Update AQ applying a formula(2)
-        for r in range(n):
-            for s in range(n):
-                AQ[r, s] = (1 - alpha) * AQ[r, s] + alpha * deltaAQ[r, s]
+        AQ = (1 - alpha) * AQ + alpha * deltaAQ
 
         # 4.
         # If End_condition == True
         # print shortest of L_k and break
         best_length_idx = np.argmin(lengths)
         best_length = lengths[best_length_idx]
-        print('Best length is:', best_length)
-        print('Total best length is:', total_best_length)
-        print('Total best tour is:', total_best_tour)
+        best_lengths_record.append(best_length)
+        # print('Best length is:', best_length)
+        # print('Total best length is:', total_best_length)
+        # print('Total best tour is:', total_best_tour)
 
         if best_length < total_best_length:
+            print('[Iteration {}] down to {}'.format(iteration, best_length))
             total_best_length = best_length
-            total_best_tour = agents[best_length_idx].tour[:]
+            total_best_tour = agents[best_length_idx].repr_tour()
+            total_best_length_idx = best_length_idx
 
-        total_lengths += lengths
-
-        if iteration == 1000:
+        if iteration == Config['iteration_num']:
+            print('Total best tour is:', total_best_tour)
             break
+
+    return best_lengths_record
 
 
 def main():
-    M = 0
+    distances = np.genfromtxt(Config['distances_file'], delimiter=str(' '))
+    n = distances.shape[0]
 
-    distances = np.genfromtxt('')
+    best_result, cities = get_best_result(distances)
 
-    antQ(distances, agents)
+    print('Best result:', best_result, cities)
+
+    agents = [Agent(c, n) for c in range(n)]
+
+    best_lengths_record = antQ(distances, agents)
+
+    import matplotlib.pyplot as plt
+    plt.plot(best_lengths_record)
+    plt.show()
 
 
 if __name__ == '__main__':

@@ -28,6 +28,7 @@ Config = {
 
 Config['distances_file'] = 'data/{}_d.txt'.format(Config['dataset'])
 Config['best_result_file'] = 'data/{}_s.txt'.format(Config['dataset'])
+Config['xy_file'] = 'data/{}_xy.txt'.format(Config['dataset'])
 
 fX = Config['floatX']
 
@@ -42,6 +43,17 @@ def get_best_result(distances, filename=Config['best_result_file']):
         result += distances[cities[i], cities[i + 1]]
 
     return result, cities
+
+
+def get_graph(filename=Config['xy_file']):
+    xy = np.genfromtxt(filename).transpose()
+    return xy[0], xy[1]
+
+
+def plot_graph(xy):
+    import matplotlib.pyplot as plt
+    plt.scatter(*xy)
+    plt.show()
 
 
 def unlimited_range(start=0, step=1):
@@ -203,10 +215,14 @@ def antQ(distances, agents):
 
 
 def main():
+    import matplotlib.pyplot as plt
+
     distances = np.genfromtxt(Config['distances_file'], delimiter=str(' '))
     n = distances.shape[0]
 
     best_result, cities = get_best_result(distances)
+
+    # plot_graph(get_graph())
 
     print('Best result:', best_result, cities)
 
@@ -214,7 +230,6 @@ def main():
 
     best_lengths_record = antQ(distances, agents)
 
-    import matplotlib.pyplot as plt
     plt.plot(best_lengths_record)
     plt.show()
 
